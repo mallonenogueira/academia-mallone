@@ -18,7 +18,10 @@ export const googleProvider = new GoogleAuthProvider();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
+const training: any = import.meta.env.PROD ? "TRAINING__PRODUCTION" : "TRAINING";
+const trainingS: any = import.meta.env.PROD ? "TRAINING_SESSION__PRODUCTION" : "TRAINING_SESSION";
+
 export enum Collections {
-  TRAINING = "TRAINING",
-  TRAINING_SESSION = "TRAINING_SESSION"
+  TRAINING = training,
+  TRAINING_SESSION = trainingS
 }

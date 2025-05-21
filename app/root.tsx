@@ -22,12 +22,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
-        
         <Links />
       </head>
       <body>
         <AuthProvider>{children}</AuthProvider>
-
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -49,9 +47,9 @@ function LayoutLogin() {
   const auth = useAuth();
 
   return (
-    <main className="flex flex-col items-center justify-center h-screen bg-gray-100">
+    <main className="flex flex-col items-center justify-center h-screen bg-gray-100 ">
       <div className="bg-white p-8 rounded shadow-md max-w-sm w-full text-center">
-        <h1 className="text-2xl font-bold mb-6">Bem-vindo</h1>
+        <h1 className="text-2xl font-bold mb-6 text-gray-900 ">Bem-vindo</h1>
         <p className="mb-4 text-gray-600">Faça login para continuar</p>
 
         <ButtonPrimary onClick={() => auth.login()} className="w-full">
@@ -67,19 +65,19 @@ function LayoutPadrao() {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="bg-white shadow px-4 py-3 md:py-4">
+    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+      <header className="bg-white shadow px-4 py-2 md:py-4">
         <div className="flex flex-row justify-between md:items-center gap-4">
           {/* Left: Logo + Nav */}
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
+          <div className="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-4">
             <Link
               to={Paths.session}
-              className="text-xl font-semibold text-gray-800"
+              className="text-lg md:text-xl font-semibold text-gray-800 "
             >
               Meus Treinos
             </Link>
 
-            <nav className="flex gap-4 text-sm">
+            <nav className="flex gap-3 text-sm">
               <Link
                 to={Paths.treinos}
                 className={`hover:underline ${
@@ -92,7 +90,7 @@ function LayoutPadrao() {
           </div>
 
           {/* Right: User info */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             {user.photoURL && (
               <img
                 src={user.photoURL}
@@ -101,7 +99,7 @@ function LayoutPadrao() {
               />
             )}
 
-            <span className="text-sm text-gray-700 truncate max-w-[120px]">
+            <span className="text-sm text-gray-700 truncate max-w-[100px]">
               {user.displayName}
             </span>
 
@@ -110,7 +108,7 @@ function LayoutPadrao() {
         </div>
       </header>
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 md:p-6">
         <Outlet />
       </main>
     </div>
@@ -138,11 +136,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main className="pt-16 p-4 container mx-auto">
+    <main className="pt-16 p-4 container mx-auto text-gray-900 ">
       <h1>{message}</h1>
       <p>{details}</p>
       {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
+        <pre className="w-full p-4 overflow-x-auto bg-gray-100 ">
           <code>{stack}</code>
         </pre>
       )}

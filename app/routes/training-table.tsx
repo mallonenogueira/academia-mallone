@@ -35,7 +35,7 @@ const columns = [
     id: "actions",
     header: "",
     cell: (info) => (
-      <Link to={Paths.treinosFormulario.replace(":id", info.getValue())}>
+      <Link tabIndex={-1} to={Paths.treinosFormulario.replace(":id", info.getValue())}>
         <ButtonSecondary>Editar</ButtonSecondary>
       </Link>
     ),
@@ -58,7 +58,7 @@ const TrainingListPage: React.FC = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-3xl font-semibold text-center mb-6">Treinos</h1>
 
-      <Link to={Paths.treinosFormularioNovo}>
+      <Link tabIndex={-1} to={Paths.treinosFormularioNovo}>
         <ButtonPrimary>Novo treino</ButtonPrimary>
       </Link>
 

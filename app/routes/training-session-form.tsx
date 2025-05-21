@@ -20,7 +20,9 @@ export default function SessaoTreinoPage() {
 
   const [trains, setTrainings] = useState<any[]>([]);
   const [selectedTrainingId, setSelectedTrainingId] = useState<string>("");
-  const [selectedDivisionIndex, setSelectedDivisionIndex] = useState<number | null>(null);
+  const [selectedDivisionIndex, setSelectedDivisionIndex] = useState<
+    number | null
+  >(null);
   const [entries, setEntries] = useState<ExerciseEntry[]>([]);
   const [lastDate, setLastDate] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,7 +47,9 @@ export default function SessaoTreinoPage() {
         setSelectedTrainingId(session.trainId);
 
         const training = trains.find((t) => t.id === session.trainId);
-        const index = training?.divisions?.findIndex((d: any) => d.name === session.divisionName);
+        const index = training?.divisions?.findIndex(
+          (d: any) => d.name === session.divisionName
+        );
         if (index !== -1) {
           setSelectedDivisionIndex(index);
         }
@@ -64,16 +68,21 @@ export default function SessaoTreinoPage() {
     const division = selectedTraining?.divisions[selectedDivisionIndex];
     if (!division) return;
 
-    const generated: ExerciseEntry[] = division.exercises.map((exercise: string) => ({
-      name: exercise,
-      series: Array(4).fill(null).map(() => ({ weight: "", reps: "" })),
-    }));
+    const generated: ExerciseEntry[] = division.exercises.map(
+      (exercise: string) => ({
+        name: exercise,
+        series: Array(4)
+          .fill(null)
+          .map(() => ({ weight: "", reps: "" })),
+      })
+    );
 
     const populatePrevious = async () => {
-      const lastSession = await new TrainingSessionService().findLastSessionForDivision(
-        user.uid!,
-        division.name
-      );
+      const lastSession =
+        await new TrainingSessionService().findLastSessionForDivision(
+          user.uid!,
+          division.name
+        );
 
       if (lastSession) {
         setLastDate(new Date(lastSession.date).toLocaleDateString("pt-BR"));
@@ -82,7 +91,9 @@ export default function SessaoTreinoPage() {
       }
 
       const populated = generated.map((exercise) => {
-        const last = lastSession?.exercises.find((e) => e.name === exercise.name);
+        const last = lastSession?.exercises.find(
+          (e) => e.name === exercise.name
+        );
         return {
           ...exercise,
           series: exercise.series.map((_, i) => ({
@@ -116,7 +127,9 @@ export default function SessaoTreinoPage() {
       userId: user.uid!,
       trainId: selectedTrainingId,
       divisionName:
-        trains.find((t) => t.id === selectedTrainingId)?.divisions[selectedDivisionIndex!].name ?? "",
+        trains.find((t) => t.id === selectedTrainingId)?.divisions[
+          selectedDivisionIndex!
+        ].name ?? "",
       date: new Date().toISOString(),
       exercises: entries,
     };
@@ -136,7 +149,9 @@ export default function SessaoTreinoPage() {
   }
 
   if (loading) {
-    return <p className="text-center text-gray-500 mt-10">Carregando sessão...</p>;
+    return (
+      <p className="text-center text-gray-500 mt-10">Carregando sessão...</p>
+    );
   }
 
   return (
@@ -194,31 +209,47 @@ export default function SessaoTreinoPage() {
         <div key={exIndex} className="border-t pt-4 w-full">
           <h2 className="font-medium">{exercise.name}</h2>
           {exercise.series.map((serie, serieIndex) => (
-            <div key={serieIndex} className="grid grid-cols-3 gap-2 items-center text-sm mb-2">
-              <span>Série {serieIndex + 1}</span>
+            <div
+              key={serieIndex}
+              className="grid grid-cols-3 gap-2 items-center text-sm mb-2"
+            >
+              <div>
+                <p>Série {serieIndex + 1}</p>
+                <p className="text-gray-500 block mb-1">
+                  Peso: {serie.previousWeight ?? ""}
+                </p>
+
+                <p className="text-gray-500 block mb-1">
+                  Reps: {serie.previousReps ?? ""}
+                </p>
+              </div>
 
               <div>
-                <span className="text-gray-500 block mb-1">
-                  Peso anterior: {serie.previousWeight ?? "-"}
-                </span>
                 <Input
                   placeholder="Peso"
                   value={serie.weight}
                   onChange={(e) =>
-                    handleInputChange(exIndex, serieIndex, "weight", e.target.value)
+                    handleInputChange(
+                      exIndex,
+                      serieIndex,
+                      "weight",
+                      e.target.value
+                    )
                   }
                 />
               </div>
 
               <div>
-                <span className="text-gray-500 block mb-1">
-                  Reps anteriores: {serie.previousReps ?? "-"}
-                </span>
                 <Input
                   placeholder="Reps"
                   value={serie.reps}
                   onChange={(e) =>
-                    handleInputChange(exIndex, serieIndex, "reps", e.target.value)
+                    handleInputChange(
+                      exIndex,
+                      serieIndex,
+                      "reps",
+                      e.target.value
+                    )
                   }
                 />
               </div>
