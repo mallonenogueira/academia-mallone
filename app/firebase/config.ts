@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDjqnP1HKZBmlBrrkS36ypGuCDUFAVV9qQ",
@@ -17,6 +18,7 @@ const app = initializeApp(firebaseConfig);
 export const googleProvider = new GoogleAuthProvider();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export enum Collections {
   TRAINING = "TRAINING",

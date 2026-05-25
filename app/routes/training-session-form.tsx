@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { TrainingService } from "~/services/training-service";
 import { TrainingSessionService } from "~/services/training-session-service";
+import { ExerciseService } from "~/services/exercise-service";
 import type { Training } from "~/types/training";
 import type { SessionSeriesEntry } from "~/types/training-session";
 import { useAuth } from "~/contexts/auth";
@@ -14,6 +15,7 @@ import { handleError } from "~/utils/errors";
 
 const trainingService = new TrainingService();
 const sessionService = new TrainingSessionService();
+const exerciseService = new ExerciseService();
 
 export default function SessaoTreinoPage() {
   const { user } = useAuth();
@@ -22,6 +24,7 @@ export default function SessaoTreinoPage() {
   const isNew = !id || id === "novo";
 
   const [trains, setTrains] = useState<Training[]>([]);
+  const [gifMap, setGifMap] = useState<Record<string, string>>({});
   const [selectedTrainingId, setSelectedTrainingId] = useState("");
   const [selectedDivisionIndex, setSelectedDivisionIndex] = useState<number | null>(null);
   const [seriesEntries, setSeriesEntries] = useState<SessionSeriesEntry[]>([]);
@@ -57,6 +60,25 @@ export default function SessaoTreinoPage() {
       .catch((err) => setFeedback({ type: "error", message: handleError(err, "Erro ao carregar sessão.") }))
       .finally(() => setLoading(false));
   }, [id, isNew, trains]);
+
+  useEffect(() => {
+    if (!selectedTrainingId || selectedDivisionIndex === null) return;
+    const training = trains.find((t) => t.id === selectedTrainingId);
+    const division = training?.divisions[selectedDivisionIndex];
+    if (!division?.seriesGroups?.length) { setGifMap({}); return; }
+
+    const ids = [...new Set(
+      division.seriesGroups.flatMap((g) => g.exercises.map((e) => e.exerciseId))
+    )];
+    exerciseService
+      .findByIds(ids)
+      .then((exercises) => {
+        const map: Record<string, string> = {};
+        exercises.forEach((ex) => { if (ex.gif) map[ex.id] = ex.gif; });
+        setGifMap(map);
+      })
+      .catch(console.error);
+  }, [selectedTrainingId, selectedDivisionIndex, trains]);
 
   useEffect(() => {
     if (!isNew || !selectedTrainingId || selectedDivisionIndex === null) return;
@@ -222,6 +244,20 @@ export default function SessaoTreinoPage() {
                 <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
                   <p className="font-semibold text-gray-900 text-sm">{groupLabel}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{group?.sets ?? 0} séries</p>
+                  {(group?.exercises ?? []).some((ex) => gifMap[ex.exerciseId]) && (
+                    <div className="flex justify-center gap-4 mt-3">
+                      {(group?.exercises ?? []).map((ex) =>
+                        gifMap[ex.exerciseId] ? (
+                          <img
+                            key={ex.exerciseId}
+                            src={gifMap[ex.exerciseId]}
+                            alt={ex.exerciseName}
+                            className="h-[250px] rounded-xl object-contain bg-white border border-gray-200"
+                          />
+                        ) : null
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto">

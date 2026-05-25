@@ -84,6 +84,16 @@ export default function ExerciseSummaryPage() {
         </Link>
       </div>
 
+      {exercise.gif && (
+        <div className="flex justify-center">
+          <img
+            src={exercise.gif}
+            alt={exercise.name}
+            className="max-h-56 rounded-2xl border border-gray-200 object-contain bg-gray-50"
+          />
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white border border-gray-200 rounded-xl px-4 py-4 text-center">
