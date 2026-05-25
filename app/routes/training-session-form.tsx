@@ -25,6 +25,7 @@ export default function SessaoTreinoPage() {
   const [selectedTrainingId, setSelectedTrainingId] = useState("");
   const [selectedDivisionIndex, setSelectedDivisionIndex] = useState<number | null>(null);
   const [seriesEntries, setSeriesEntries] = useState<SessionSeriesEntry[]>([]);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [lastDate, setLastDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingPrev, setLoadingPrev] = useState(false);
@@ -50,6 +51,7 @@ export default function SessaoTreinoPage() {
         const idx = training?.divisions.findIndex((d) => d.name === session.divisionName) ?? -1;
         if (idx !== -1) setSelectedDivisionIndex(idx);
         setSeriesEntries(session.seriesEntries ?? []);
+        setDate(session.date.slice(0, 10));
         setLastDate(new Date(session.date).toLocaleDateString("pt-BR"));
       })
       .catch((err) => setFeedback({ type: "error", message: handleError(err, "Erro ao carregar sessão.") }))
@@ -122,7 +124,7 @@ export default function SessaoTreinoPage() {
       trainId: selectedTrainingId,
       trainTitle: training?.title ?? "",
       divisionName: training?.divisions[selectedDivisionIndex!]?.name ?? "",
-      date: new Date().toISOString(),
+      date: new Date(date + "T12:00:00").toISOString(),
       seriesEntries,
     };
 
@@ -155,6 +157,17 @@ export default function SessaoTreinoPage() {
       <FeedbackBanner feedback={feedback} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="data">Data</Label>
+          <input
+            id="data"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+          />
+        </div>
+        <div />
         <div>
           <Label htmlFor="treino">Treino</Label>
           <Select

@@ -4,6 +4,7 @@ import { TrainingService } from "~/services/training-service";
 import { TrainingSessionService } from "~/services/training-session-service";
 import { ButtonSecondary } from "~/components/button";
 import { FeedbackBanner, type FeedbackState } from "~/components/feedback-banner";
+import { useAuth } from "~/contexts/auth";
 import { Paths } from "~/routes";
 import type { Training } from "~/types/training";
 import type { TrainingSession } from "~/types/training-session";
@@ -13,6 +14,7 @@ const trainingService = new TrainingService();
 const sessionService = new TrainingSessionService();
 
 export default function TrainingSummaryPage() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [training, setTraining] = useState<Training | null>(null);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
@@ -23,7 +25,7 @@ export default function TrainingSummaryPage() {
     if (!id) return;
     Promise.all([
       trainingService.findOne(id),
-      sessionService.findAll(),
+      sessionService.findAllByUser(user.uid!),
     ])
       .then(([t, all]) => {
         setTraining(t);

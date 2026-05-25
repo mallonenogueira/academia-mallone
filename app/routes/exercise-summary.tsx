@@ -4,6 +4,7 @@ import { ExerciseService } from "~/services/exercise-service";
 import { TrainingSessionService } from "~/services/training-session-service";
 import { ButtonSecondary } from "~/components/button";
 import { FeedbackBanner, type FeedbackState } from "~/components/feedback-banner";
+import { useAuth } from "~/contexts/auth";
 import { Paths } from "~/routes";
 import type { Exercise } from "~/types/exercise";
 import type { TrainingSession } from "~/types/training-session";
@@ -18,6 +19,7 @@ type HistoryEntry = {
 };
 
 export default function ExerciseSummaryPage() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -26,7 +28,7 @@ export default function ExerciseSummaryPage() {
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([exerciseService.findOne(id), sessionService.findAll()])
+    Promise.all([exerciseService.findOne(id), sessionService.findAllByUser(user.uid!)])
       .then(([ex, sessions]) => {
         setExercise(ex);
         const entries: HistoryEntry[] = [];
