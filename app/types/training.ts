@@ -1,6 +1,16 @@
+export type SeriesExercise = {
+  exerciseId: string;
+  exerciseName: string;
+};
+
+export type SeriesGroup = {
+  sets: number;
+  exercises: SeriesExercise[];
+};
+
 export type Division = {
   name: string;
-  exercises: string[];
+  seriesGroups: SeriesGroup[];
 };
 
 export type Training = {

@@ -20,5 +20,6 @@ export const db = getFirestore(app);
 
 export enum Collections {
   TRAINING = "TRAINING",
-  TRAINING_SESSION = "TRAINING_SESSION"
+  TRAINING_SESSION = "TRAINING_SESSION",
+  EXERCISE = "EXERCISE",
 }

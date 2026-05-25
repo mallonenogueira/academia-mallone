@@ -1,20 +1,26 @@
-export interface TrainingSession {
-  id: string;
-  userId: string;
-  trainId: string;
-  divisionName: string;
-  date: string;
-  exercises: ExerciseEntry[];
-}
-
-export interface SeriesEntry {
+export type SetExerciseEntry = {
+  exerciseId: string;
+  exerciseName: string;
   weight: string;
   reps: string;
   previousWeight?: string;
   previousReps?: string;
-}
+};
 
-export interface ExerciseEntry {
-  name: string;
-  series: SeriesEntry[];
-}
+export type SetRecord = {
+  exercises: SetExerciseEntry[];
+};
+
+export type SessionSeriesEntry = {
+  sets: SetRecord[];
+};
+
+export type TrainingSession = {
+  id: string;
+  userId: string;
+  trainId: string;
+  trainTitle: string;
+  divisionName: string;
+  date: string;
+  seriesEntries: SessionSeriesEntry[];
+};

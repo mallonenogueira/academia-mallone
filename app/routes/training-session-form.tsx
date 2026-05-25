@@ -1,236 +1,296 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { TrainingService } from "~/services/training-service";
 import { TrainingSessionService } from "~/services/training-session-service";
-import type { ExerciseEntry } from "~/types/training-session";
+import type { Training } from "~/types/training";
+import type { SessionSeriesEntry } from "~/types/training-session";
 import { useAuth } from "~/contexts/auth";
 import { Label } from "~/components/label";
 import { Select } from "~/components/select";
-import { Input } from "~/components/input";
 import { ButtonPrimary } from "~/components/button";
+import { FeedbackBanner, type FeedbackState } from "~/components/feedback-banner";
+import { Paths } from "~/routes";
+import { handleError } from "~/utils/errors";
 
-type Params = {
-  id: string;
-};
+const trainingService = new TrainingService();
+const sessionService = new TrainingSessionService();
 
 export default function SessaoTreinoPage() {
   const { user } = useAuth();
-  const { id } = useParams<Params>();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const isNew = !id || id === "novo";
 
-  const [trains, setTrainings] = useState<any[]>([]);
-  const [selectedTrainingId, setSelectedTrainingId] = useState<string>("");
+  const [trains, setTrains] = useState<Training[]>([]);
+  const [selectedTrainingId, setSelectedTrainingId] = useState("");
   const [selectedDivisionIndex, setSelectedDivisionIndex] = useState<number | null>(null);
-  const [entries, setEntries] = useState<ExerciseEntry[]>([]);
+  const [seriesEntries, setSeriesEntries] = useState<SessionSeriesEntry[]>([]);
   const [lastDate, setLastDate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingPrev, setLoadingPrev] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackState>(null);
 
   useEffect(() => {
-    new TrainingService().findAll().then(setTrainings);
+    trainingService
+      .findAll()
+      .then(setTrains)
+      .catch((err) => setFeedback({ type: "error", message: handleError(err, "Erro ao carregar treinos.") }));
   }, []);
 
-  // Carregar sessão se for edição
   useEffect(() => {
     if (isNew || !id) return;
-
     setLoading(true);
-
-    new TrainingSessionService()
+    sessionService
       .findOne(id)
       .then((session) => {
-        if (!session) {
-          return alert("Sessão não encontrada.");
-        }
-
+        if (!session) { setFeedback({ type: "error", message: "Sessão não encontrada." }); return; }
         setSelectedTrainingId(session.trainId);
-
         const training = trains.find((t) => t.id === session.trainId);
-        const index = training?.divisions?.findIndex((d: any) => d.name === session.divisionName);
-        if (index !== -1) {
-          setSelectedDivisionIndex(index);
-        }
-
-        setEntries(session.exercises);
+        const idx = training?.divisions.findIndex((d) => d.name === session.divisionName) ?? -1;
+        if (idx !== -1) setSelectedDivisionIndex(idx);
+        setSeriesEntries(session.seriesEntries ?? []);
         setLastDate(new Date(session.date).toLocaleDateString("pt-BR"));
       })
-      .catch(console.error)
+      .catch((err) => setFeedback({ type: "error", message: handleError(err, "Erro ao carregar sessão.") }))
       .finally(() => setLoading(false));
   }, [id, isNew, trains]);
 
   useEffect(() => {
     if (!isNew || !selectedTrainingId || selectedDivisionIndex === null) return;
+    const training = trains.find((t) => t.id === selectedTrainingId);
+    const division = training?.divisions[selectedDivisionIndex];
+    if (!division?.seriesGroups?.length) return;
 
-    const selectedTraining = trains.find((t) => t.id === selectedTrainingId);
-    const division = selectedTraining?.divisions[selectedDivisionIndex];
-    if (!division) return;
+    setLoadingPrev(true);
+    sessionService
+      .findLastSessionForDivision(user.uid!, division.name)
+      .then((lastSession) => {
+        setLastDate(lastSession ? new Date(lastSession.date).toLocaleDateString("pt-BR") : "");
 
-    const generated: ExerciseEntry[] = division.exercises.map((exercise: string) => ({
-      name: exercise,
-      series: Array(4).fill(null).map(() => ({ weight: "", reps: "" })),
-    }));
-
-    const populatePrevious = async () => {
-      const lastSession = await new TrainingSessionService().findLastSessionForDivision(
-        user.uid!,
-        division.name
-      );
-
-      if (lastSession) {
-        setLastDate(new Date(lastSession.date).toLocaleDateString("pt-BR"));
-      } else {
-        setLastDate("");
-      }
-
-      const populated = generated.map((exercise) => {
-        const last = lastSession?.exercises.find((e) => e.name === exercise.name);
-        return {
-          ...exercise,
-          series: exercise.series.map((_, i) => ({
-            previousWeight: last?.series[i]?.weight ?? "",
-            previousReps: last?.series[i]?.reps ?? "",
-            weight: "",
-            reps: "",
-          })),
-        };
-      });
-
-      setEntries(populated);
-    };
-
-    populatePrevious();
+        const entries: SessionSeriesEntry[] = division.seriesGroups.map((group, gi) => {
+          const prevEntry = lastSession?.seriesEntries?.[gi];
+          return {
+            sets: Array(group.sets)
+              .fill(null)
+              .map((_, si) => ({
+                exercises: (group.exercises ?? []).map((ex, ei) => ({
+                  exerciseId: ex.exerciseId,
+                  exerciseName: ex.exerciseName,
+                  weight: "",
+                  reps: "",
+                  previousWeight: prevEntry?.sets[si]?.exercises[ei]?.weight ?? "",
+                  previousReps: prevEntry?.sets[si]?.exercises[ei]?.reps ?? "",
+                })),
+              })),
+          };
+        });
+        setSeriesEntries(entries);
+      })
+      .catch((err) => setFeedback({ type: "error", message: handleError(err, "Erro ao carregar sessão anterior.") }))
+      .finally(() => setLoadingPrev(false));
   }, [selectedTrainingId, selectedDivisionIndex, isNew]);
 
-  function handleInputChange(
-    exIndex: number,
-    serieIndex: number,
+  function handleInput(
+    groupIdx: number,
+    setIdx: number,
+    exIdx: number,
     field: "weight" | "reps",
     value: string
   ) {
-    const updated = [...entries];
-    updated[exIndex].series[serieIndex][field] = value;
-    setEntries(updated);
+    setSeriesEntries((prev) =>
+      prev.map((entry, gi) => {
+        if (gi !== groupIdx) return entry;
+        return {
+          sets: entry.sets.map((setRecord, si) => {
+            if (si !== setIdx) return setRecord;
+            return {
+              exercises: setRecord.exercises.map((ex, ei) =>
+                ei === exIdx ? { ...ex, [field]: value } : ex
+              ),
+            };
+          }),
+        };
+      })
+    );
   }
 
   async function handleSave() {
+    const training = trains.find((t) => t.id === selectedTrainingId);
     const payload = {
       userId: user.uid!,
       trainId: selectedTrainingId,
-      divisionName:
-        trains.find((t) => t.id === selectedTrainingId)?.divisions[selectedDivisionIndex!].name ?? "",
+      trainTitle: training?.title ?? "",
+      divisionName: training?.divisions[selectedDivisionIndex!]?.name ?? "",
       date: new Date().toISOString(),
-      exercises: entries,
+      seriesEntries,
     };
 
+    setSaving(true);
     try {
       if (isNew) {
-        await new TrainingSessionService().create(payload);
-        alert("Sessão salva com sucesso!");
+        await sessionService.create(payload);
+        navigate(Paths.session);
       } else {
-        await new TrainingSessionService().update(id, payload);
-        alert("Sessão atualizada com sucesso!");
+        await sessionService.update(id!, payload);
+        setFeedback({ type: "success", message: "Sessão atualizada!" });
       }
     } catch (err) {
-      console.error(err);
-      alert("Erro ao salvar sessão.");
+      setFeedback({ type: "error", message: handleError(err, "Erro ao salvar sessão.") });
+    } finally {
+      setSaving(false);
     }
   }
 
-  if (loading) {
-    return <p className="text-center text-gray-500 mt-10">Carregando sessão...</p>;
-  }
+  const selectedTraining = trains.find((t) => t.id === selectedTrainingId);
+
+  if (loading) return <p className="text-center text-gray-400 mt-20">Carregando...</p>;
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <h1 className="text-xl font-semibold">
-        {isNew ? "Nova Sessão de Treino" : "Editar Sessão de Treino"}
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6 pb-24">
+      <h1 className="text-2xl font-bold text-gray-900">
+        {isNew ? "Nova sessão" : "Editar sessão"}
       </h1>
 
-      <div className="space-y-2">
-        <Label htmlFor="treino">Escolha o treino</Label>
-        <Select
-          id="treino"
-          value={selectedTrainingId}
-          onChange={(e) => {
-            setSelectedTrainingId(e.target.value);
-            setSelectedDivisionIndex(null);
-          }}
-        >
-          <option value="">Selecione</option>
-          {trains.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <FeedbackBanner feedback={feedback} />
 
-      {selectedTrainingId && (
-        <div className="space-y-2">
-          <Label htmlFor="divisao">Escolha a divisão</Label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="treino">Treino</Label>
+          <Select
+            id="treino"
+            value={selectedTrainingId}
+            onChange={(e) => {
+              setSelectedTrainingId(e.target.value);
+              setSelectedDivisionIndex(null);
+              setSeriesEntries([]);
+              setLastDate("");
+            }}
+          >
+            <option value="">Selecione</option>
+            {trains.map((t) => (
+              <option key={t.id} value={t.id}>{t.title}</option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="divisao">Divisão</Label>
           <Select
             id="divisao"
             value={selectedDivisionIndex ?? ""}
+            disabled={!selectedTrainingId}
             onChange={(e) => setSelectedDivisionIndex(Number(e.target.value))}
           >
             <option value="">Selecione</option>
-            {trains
-              .find((t) => t.id === selectedTrainingId)
-              ?.divisions.map((d: any, idx: number) => (
-                <option key={idx} value={idx}>
-                  {d.name}
-                </option>
-              ))}
+            {selectedTraining?.divisions.map((d, idx) => (
+              <option key={idx} value={idx}>{d.name}</option>
+            ))}
           </Select>
         </div>
-      )}
+      </div>
 
       {lastDate && (
-        <p className="text-sm text-gray-600">
-          Última sessão registrada em: <strong>{lastDate}</strong>
+        <p className="text-sm text-gray-400">
+          Referência: <span className="font-medium text-gray-600">{lastDate}</span>
         </p>
       )}
 
-      {entries.map((exercise, exIndex) => (
-        <div key={exIndex} className="border-t pt-4 w-full">
-          <h2 className="font-medium">{exercise.name}</h2>
-          {exercise.series.map((serie, serieIndex) => (
-            <div key={serieIndex} className="grid grid-cols-3 gap-2 items-center text-sm mb-2">
-              <span>Série {serieIndex + 1}</span>
+      {loadingPrev && (
+        <p className="text-sm text-gray-400 animate-pulse">Carregando dados anteriores...</p>
+      )}
 
-              <div>
-                <span className="text-gray-500 block mb-1">
-                  Peso anterior: {serie.previousWeight ?? "-"}
-                </span>
-                <Input
-                  placeholder="Peso"
-                  value={serie.weight}
-                  onChange={(e) =>
-                    handleInputChange(exIndex, serieIndex, "weight", e.target.value)
-                  }
-                />
-              </div>
+      {seriesEntries.length > 0 && (
+        <div className="space-y-4">
+          {seriesEntries.map((entry, gi) => {
+            const group = selectedTraining?.divisions[selectedDivisionIndex!]?.seriesGroups?.[gi];
+            const groupLabel = (group?.exercises ?? []).map((e) => e.exerciseName).join(" + ") || `Série ${gi + 1}`;
+            return (
+              <div key={gi} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                  <p className="font-semibold text-gray-900 text-sm">{groupLabel}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{group?.sets ?? 0} séries</p>
+                </div>
 
-              <div>
-                <span className="text-gray-500 block mb-1">
-                  Reps anteriores: {serie.previousReps ?? "-"}
-                </span>
-                <Input
-                  placeholder="Reps"
-                  value={serie.reps}
-                  onChange={(e) =>
-                    handleInputChange(exIndex, serieIndex, "reps", e.target.value)
-                  }
-                />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[420px]">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 w-10">#</th>
+                        {(entry.sets[0]?.exercises ?? []).map((ex, ei) => (
+                          <th key={ei} colSpan={2} className="px-3 py-2.5 text-left text-xs font-medium text-gray-700 border-l border-gray-100">
+                            {ex.exerciseName}
+                          </th>
+                        ))}
+                      </tr>
+                      <tr className="border-b border-gray-100 bg-gray-50/50">
+                        <th className="px-4 py-1.5" />
+                        {(entry.sets[0]?.exercises ?? []).map((_, ei) => (
+                          <>
+                            <th key={`kg-${ei}`} className="px-3 py-1.5 text-left text-xs text-gray-400 font-normal border-l border-gray-100">
+                              Peso kg
+                            </th>
+                            <th key={`rp-${ei}`} className="px-3 py-1.5 text-left text-xs text-gray-400 font-normal">
+                              Reps
+                            </th>
+                          </>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {(entry.sets ?? []).map((setRecord, si) => (
+                        <tr key={si} className="hover:bg-gray-50/50">
+                          <td className="px-4 py-2 text-gray-400 font-medium text-xs">{si + 1}</td>
+                          {(setRecord.exercises ?? []).map((ex, ei) => (
+                            <>
+                              <td key={`w-${ei}`} className="px-2 py-2 border-l border-gray-100">
+                                <div className="space-y-0.5">
+                                  {ex.previousWeight && (
+                                    <p className="text-xs text-gray-300">{ex.previousWeight}</p>
+                                  )}
+                                  <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    placeholder="0"
+                                    value={ex.weight}
+                                    onChange={(e) => handleInput(gi, si, ei, "weight", e.target.value)}
+                                    className="w-20 border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                  />
+                                </div>
+                              </td>
+                              <td key={`r-${ei}`} className="px-2 py-2">
+                                <div className="space-y-0.5">
+                                  {ex.previousReps && (
+                                    <p className="text-xs text-gray-300">{ex.previousReps}</p>
+                                  )}
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    placeholder="0"
+                                    value={ex.reps}
+                                    onChange={(e) => handleInput(gi, si, ei, "reps", e.target.value)}
+                                    className="w-20 border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                  />
+                                </div>
+                              </td>
+                            </>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-      ))}
+      )}
 
-      {entries.length > 0 && (
-        <ButtonPrimary onClick={handleSave}>
-          {isNew ? "Salvar sessão" : "Atualizar sessão"}
-        </ButtonPrimary>
+      {seriesEntries.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-lg sm:static sm:bg-transparent sm:border-0 sm:shadow-none sm:flex sm:justify-end">
+          <ButtonPrimary onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+            {saving ? "Salvando..." : isNew ? "Salvar sessão" : "Atualizar sessão"}
+          </ButtonPrimary>
+        </div>
       )}
     </div>
   );
